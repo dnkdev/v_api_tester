@@ -7,21 +7,34 @@ import net.http
 [heap]
 struct App {
 mut:
-	window       &ui.Window  = unsafe { nil }
-	url_box      &ui.TextBox = unsafe { nil }
-	request_btn  &ui.Button  = unsafe { nil }
-	response_box &ui.TextBox = unsafe { nil }
-	result_label &ui.Label   = unsafe { nil }
+	window           &ui.Window  = unsafe { nil }
+	url_box          &ui.TextBox = unsafe { nil }
+	request_btn      &ui.Button  = unsafe { nil }
+	response_box     &ui.TextBox = unsafe { nil }
+	result_label     &ui.Label   = unsafe { nil }
+	status_msg_label &ui.Label   = unsafe { nil }
 
 	request_type  &ui.Dropdown = unsafe { nil }
 	parameter_row &ui.Stack    = unsafe { nil }
 	checkbox_row  &ui.Stack    = unsafe { nil }
+	history_row	  &ui.Stack    = unsafe { nil }
 	response      http.Response
 }
 
 const (
-	win_width  = 800
-	win_height = 600
+	request_methods = [
+		http.Method.get,
+		http.Method.post,
+		http.Method.put,
+		http.Method.head,
+		http.Method.delete,
+		http.Method.options,
+		http.Method.trace,
+		http.Method.connect,
+		http.Method.patch,
+	]
+	win_width       = 800
+	win_height      = 600
 )
 
 fn (mut app App) create_window() {
@@ -32,39 +45,16 @@ fn (mut app App) create_window() {
 		text_size: 20
 		bg_color: gx.light_gray
 		width: 145
-		on_selection_changed: fn (mut dd &ui.Dropdown) {
+		on_selection_changed: fn (mut dd ui.Dropdown) {
 			dd.style.border_color = gx.light_gray
 		}
-		items: [
-			ui.DropdownItem{
-				text: 'GET'
-			},
-			ui.DropdownItem{
-				text: 'POST'
-			},
-			ui.DropdownItem{
-				text: 'PUT'
-			},
-			ui.DropdownItem{
-				text: 'HEAD'
-			},
-			ui.DropdownItem{
-				text: 'DELETE'
-			},
-			ui.DropdownItem{
-				text: 'OPTIONS'
-			},
-			ui.DropdownItem{
-				text: 'TRACE'
-			},
-			ui.DropdownItem{
-				text: 'CONNECT'
-			},
-			ui.DropdownItem{
-				text: 'PATCH'
-			},
-		]
 	)
+	for m in request_methods {
+		app.request_type.items << ui.DropdownItem{
+			text: m.str()
+		}
+	}
+
 	app.url_box = ui.textbox(
 		mode: .line_numbers
 		id: 'url_box'
@@ -95,6 +85,12 @@ fn (mut app App) create_window() {
 		text: ''
 		text_vertical_align: .top
 	)
+	app.status_msg_label = ui.label(
+		height: 16
+		text: ''
+		text_vertical_align: .top
+		text_align: .center
+	)
 
 	app.response_box = ui.textbox(
 		mode: .multiline
@@ -107,8 +103,8 @@ fn (mut app App) create_window() {
 
 	app.parameter_row = ui.column(
 		// heights: 1.0
-		widths: ui.fit
-		heights: ui.fit
+		// widths: ui.compact
+		// heights: ui.compact
 		children: [
 			// app.make_name_value_row(0)
 		]
@@ -149,23 +145,28 @@ fn (mut app App) create_window() {
 			),
 		]
 	)
-
+	app.history_row = ui.column(
+		margin_: 0
+		children:[
+			//ui.label(text:'hello')
+		]
+	)
 	app.window = ui.window(
 		width: win_width
 		height: win_height
 		title: 'V API Tester'
-		resizable: false
+		resizable: true
 		children: [
 			ui.column(
 				margin: ui.Margin{0, 0, 10, 0}
 				bg_color: gx.rgb(255, 255, 255)
-				//widths: 0.99
+				widths: 0.99
 				heights: 0.33
 				children: [
 					ui.column(
 						margin_: 5
 						bg_color: gx.rgb(255, 255, 255)
-						// widths: 0.7
+						// widths: ui.fit
 						children: [
 							ui.row(
 								// margin_: 5
@@ -199,9 +200,7 @@ fn (mut app App) create_window() {
 								text: ''
 								text_vertical_align: .top
 							),
-
 							app.parameter_row,
-
 							ui.label(
 								id: 'empty_space_label'
 								height: 10
@@ -216,26 +215,27 @@ fn (mut app App) create_window() {
 								text_vertical_align: .top
 							),
 							app.request_btn,
-							app.result_label,
+							ui.row(
+								margin_: ui.compact
+								children: [
+									app.result_label,
+									app.status_msg_label,
+								]
+							),
 							app.response_box,
+							ui.label(
+								id: 'empty_space_label'
+								height: 5
+								text: ''
+								text_vertical_align: .top
+							),
+							ui.column(
+								children: [
+									app.history_row,
+								]
+							)
 						]
 					),
-					// ui.row(
-					// 	margin_: 5
-					// 	bg_color: gx.rgb(255, 255, 255)
-					// 	widths: 0.5
-					// 	heights:0.9
-					// 	children: [
-					// 		ui.rectangle(
-					// 			//height:100
-					// 			color:gx.light_gray
-					// 		),
-					// 		ui.rectangle(
-					// 			//height:100
-					// 			color:gx.green
-					// 		)
-					// 	]
-					// ),
 				]
 			),
 		]
@@ -245,7 +245,7 @@ fn (mut app App) create_window() {
 }
 
 fn (mut app App) on_window_resize(window &ui.Window, w int, h int) {
-	println('${w} ${h}')
+	// println('${w} ${h}')
 	app.response_box.height = h / 2 - 100
 	app.url_box.width = w - 155
 }
